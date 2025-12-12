@@ -1,0 +1,76 @@
+═══════════════════════════════════════════════════════════════
+  COMANDI PER ZSH (Mac Moderno)
+═══════════════════════════════════════════════════════════════
+
+PASSO 1: Vai nella cartella del progetto
+───────────────────────────────────────────────────────────────
+Copia e incolla nel Terminale:
+
+cd /Users/nicco/Downloads/profumo_price_monitor
+
+
+PASSO 2: Prepara git (semplice)
+───────────────────────────────────────────────────────────────
+Copia e incolla questi comandi uno alla volta:
+
+git init
+git add .
+git commit -m "Profumo price monitor"
+
+
+PASSO 3: Crea repository su GitHub
+───────────────────────────────────────────────────────────────
+1. Apri il browser
+2. Vai su: https://github.com/new
+3. Repository name: profumo-monitor
+4. NON selezionare nulla (README, .gitignore, license)
+5. Clicca "Create repository"
+
+
+PASSO 4: Collega e carica su GitHub
+───────────────────────────────────────────────────────────────
+GitHub ti mostrerà dei comandi. IGNORALI!
+
+Invece, nel Terminale incolla questi comandi
+(SOSTITUISCI TUO_USERNAME con il tuo username GitHub):
+
+git remote add origin https://github.com/TUO_USERNAME/profumo-monitor.git
+git branch -M main
+git push -u origin main
+
+ESEMPIO se il tuo username è "nicco123":
+git remote add origin https://github.com/nicco123/profumo-monitor.git
+git branch -M main
+git push -u origin main
+
+Ti chiederà username e password GitHub. Inseriscili.
+
+
+═══════════════════════════════════════════════════════════════
+  SE HAI PROBLEMI CON GIT PUSH
+═══════════════════════════════════════════════════════════════
+
+Se git push non funziona, prova:
+
+1. Verifica che il repository esista su GitHub
+2. Usa un Personal Access Token invece della password:
+   - Vai su: https://github.com/settings/tokens
+   - Clicca "Generate new token (classic)"
+   - Seleziona "repo" (tutti i permessi repo)
+   - Copia il token
+   - Usa il token come password quando git chiede la password
+
+
+═══════════════════════════════════════════════════════════════
+  VARIABILI PER RAILWAY (da aggiungere dopo il deploy)
+═══════════════════════════════════════════════════════════════
+
+TELEGRAM_BOT_TOKEN = 8037950581:AAFbYsxTE9tkk32z0qKO_30dE5BMgupm0m4
+TELEGRAM_CHAT_ID = 152494821
+DATABASE_URL = sqlite:///profumi_prices.db
+CHECK_INTERVAL_HOURS = 6
+PRICE_DROP_THRESHOLD = 0.15
+REQUEST_DELAY = 2.0
+EMAIL_ENABLED = False
+
+═══════════════════════════════════════════════════════════════

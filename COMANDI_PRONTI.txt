@@ -1,0 +1,44 @@
+═══════════════════════════════════════════════════════════════
+  COMANDI PRONTI DA COPIARE E INCOLLARE
+═══════════════════════════════════════════════════════════════
+
+FASE 1: Preparare il progetto
+───────────────────────────────────────────────────────────────
+Apri Terminale e incolla:
+
+cd /Users/nicco/Downloads/profumo_price_monitor
+chmod +x setup_github.sh
+./setup_github.sh
+
+
+FASE 2: Caricare su GitHub
+───────────────────────────────────────────────────────────────
+Dopo aver creato il repository su GitHub, incolla questi comandi
+(SOSTITUISCI TUO_USERNAME con il tuo username GitHub):
+
+cd /Users/nicco/Downloads/profumo_price_monitor
+git remote add origin https://github.com/TUO_USERNAME/profumo-monitor.git
+git branch -M main
+git push -u origin main
+
+Esempio se il tuo username è "nicco123":
+git remote add origin https://github.com/nicco123/profumo-monitor.git
+git branch -M main
+git push -u origin main
+
+
+═══════════════════════════════════════════════════════════════
+  VARIABILI DA AGGIUNGERE SU RAILWAY
+═══════════════════════════════════════════════════════════════
+
+Copia e incolla queste nel progetto Railway → Variables:
+
+TELEGRAM_BOT_TOKEN = 8037950581:AAFbYsxTE9tkk32z0qKO_30dE5BMgupm0m4
+TELEGRAM_CHAT_ID = 152494821
+DATABASE_URL = sqlite:///profumi_prices.db
+CHECK_INTERVAL_HOURS = 6
+PRICE_DROP_THRESHOLD = 0.15
+REQUEST_DELAY = 2.0
+EMAIL_ENABLED = False
+
+═══════════════════════════════════════════════════════════════
