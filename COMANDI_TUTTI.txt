@@ -1,0 +1,58 @@
+═══════════════════════════════════════════════════════════════
+  TUTTI I COMANDI TERMINALE - COPIA E INCOLLA
+═══════════════════════════════════════════════════════════════
+
+FASE 1: Preparare Progetto
+───────────────────────────────────────────────────────────────
+
+cd /Users/nicco/Downloads/profumo_price_monitor
+
+git init
+
+git add .
+
+git commit -m "Profumo price monitor"
+
+
+FASE 2: Creare Repository GitHub
+───────────────────────────────────────────────────────────────
+(Vai su https://github.com/new nel browser)
+- Repository name: profumo-monitor
+- NON selezionare nulla
+- Clicca "Create repository"
+
+
+FASE 3: Creare Token GitHub
+───────────────────────────────────────────────────────────────
+(Vai su https://github.com/settings/tokens nel browser)
+- Generate new token (classic)
+- Note: railway-deploy
+- Seleziona: repo
+- Genera e COPIA il token
+
+
+FASE 4: Caricare Codice
+───────────────────────────────────────────────────────────────
+
+git remote add origin https://github.com/sickn33/profumo-monitor.git
+
+git branch -M main
+
+git push -u origin main
+
+(Quando chiede: username = sickn33, password = TOKEN)
+
+
+═══════════════════════════════════════════════════════════════
+  VARIABILI PER RAILWAY
+═══════════════════════════════════════════════════════════════
+
+TELEGRAM_BOT_TOKEN = 8037950581:AAFbYsxTE9tkk32z0qKO_30dE5BMgupm0m4
+TELEGRAM_CHAT_ID = 152494821
+DATABASE_URL = sqlite:///profumi_prices.db
+CHECK_INTERVAL_HOURS = 6
+PRICE_DROP_THRESHOLD = 0.15
+REQUEST_DELAY = 2.0
+EMAIL_ENABLED = False
+
+═══════════════════════════════════════════════════════════════
