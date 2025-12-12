@@ -30,7 +30,8 @@ COMPETITOR_PRICE_DIFF = float(os.getenv('COMPETITOR_PRICE_DIFF', '0.20'))  # 20%
 MIN_PRICE_FOR_MONITORING = float(os.getenv('MIN_PRICE_FOR_MONITORING', '10.0'))  # Prezzo minimo da monitorare
 
 # Scheduler
-CHECK_INTERVAL_HOURS = int(os.getenv('CHECK_INTERVAL_HOURS', '6'))  # Controllo ogni 6 ore
+CHECK_INTERVAL_MINUTES = int(os.getenv('CHECK_INTERVAL_MINUTES', '15'))  # Controllo ogni 15 minuti (default)
+CHECK_INTERVAL_HOURS = float(os.getenv('CHECK_INTERVAL_HOURS', str(CHECK_INTERVAL_MINUTES / 60)))  # Converti in ore per compatibilità
 
 # User-Agent per le richieste
 USER_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
