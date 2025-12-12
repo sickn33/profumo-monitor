@@ -28,6 +28,13 @@ def start_scheduler():
         trigger = IntervalTrigger(hours=interval_hours)
         interval_display = f"{interval_hours} ore"
     
+    # Esegui un controllo immediato all'avvio
+    logger.info("Eseguendo controllo iniziale immediato...")
+    try:
+        main.run_monitoring_cycle()
+    except Exception as e:
+        logger.error(f"Errore nel controllo iniziale: {e}", exc_info=True)
+    
     # Aggiungi job per eseguire il monitoraggio periodicamente
     scheduler.add_job(
         main.run_monitoring_cycle,
