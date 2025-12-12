@@ -35,8 +35,13 @@ def run_monitoring_cycle():
         
         logger.info(f"Trovati {len(products)} prodotti")
         
+        if len(products) == 0:
+            logger.warning("⚠️ Nessun prodotto trovato! Verifica che lo scraper funzioni correttamente.")
+            return
+        
         # Processa ogni prodotto
         alerts_generated = 0
+        products_processed = 0
         for product_data in products:
             if not product_data or not product_data.get('price'):
                 continue
@@ -53,8 +58,13 @@ def run_monitoring_cycle():
             # Analizza il prodotto
             alerts = analyzer.analyze_product(product)
             alerts_generated += len(alerts)
+            products_processed += 1
         
+        logger.info(f"Processati {products_processed} prodotti")
         logger.info(f"Generati {alerts_generated} alert")
+        
+        if products_processed == 0:
+            logger.warning("⚠️ Nessun prodotto processato! Verifica che i prodotti abbiano prezzi validi.")
         
         # Invia notifiche per alert non ancora notificati
         unnotified_alerts = db.get_unnotified_alerts()
