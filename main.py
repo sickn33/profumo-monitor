@@ -75,6 +75,39 @@ def run_monitoring_cycle():
             if success:
                 db.mark_alert_notified(alert.id)
         
+        # Invia riepilogo su Telegram
+        try:
+            summary = (
+                f"📊 <b>Riepilogo Monitoraggio</b>\n\n"
+                f"✅ Prodotti trovati: {len(products)}\n"
+                f"✅ Prodotti processati: {products_processed}\n"
+                f"🔔 Alert generati: {alerts_generated}\n"
+                f"📬 Notifiche inviate: {len(unnotified_alerts)}\n\n"
+            )
+            
+            if products_processed > 0:
+                # Statistiche prodotti
+                products_with_price = [p for p in products if p.get('price')]
+                if products_with_price:
+                    prices = [p['price'] for p in products_with_price]
+                    summary += (
+                        f"💰 Prezzo minimo: €{min(prices):.2f}\n"
+                        f"💰 Prezzo massimo: €{max(prices):.2f}\n"
+                        f"💰 Prezzo medio: €{sum(prices)/len(prices):.2f}\n\n"
+                    )
+            
+            if alerts_generated == 0:
+                summary += "ℹ️ Nessun calo di prezzo significativo rilevato.\n"
+                summary += "Il prossimo controllo tra 15 minuti."
+            else:
+                summary += f"🎯 Trovati {alerts_generated} cali di prezzo/offerte!"
+            
+            # Invia riepilogo
+            notif.send_telegram(summary)
+            logger.info("Riepilogo inviato su Telegram")
+        except Exception as e:
+            logger.error(f"Errore nell'invio riepilogo Telegram: {e}")
+        
         logger.info("Ciclo di monitoraggio completato")
         
     except Exception as e:
