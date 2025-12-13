@@ -6,3 +6,4 @@ import main
 if __name__ == "__main__":
     print("Eseguendo controllo immediato...")
     main.run_monitoring_cycle()
+

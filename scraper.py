@@ -400,7 +400,8 @@ class CasaDelProfumoScraper:
         for i, category_url in enumerate(categories, 1):
             logger.info(f"[{i}/{len(categories)}] Scraping categoria: {category_url}")
             try:
-                products = self.scrape_category(category_url, max_pages=15)
+                # Ridotto a 5 pagine per categoria per velocizzare (era 15)
+                products = self.scrape_category(category_url, max_pages=5)
                 
                 # Filtra duplicati
                 unique_products = []
