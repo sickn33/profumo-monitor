@@ -390,12 +390,21 @@ class CasaDelProfumoScraper:
                 all_products.append(product)
         logger.info(f"Prodotti homepage: {len(homepage_products)}")
         
-        # 2. Scopri e scrapa categorie
+        # 2. Scrapa SOLO le categorie richieste dall'utente
         logger.info("=" * 60)
-        logger.info("FASE 2: Scoperta e scraping categorie")
+        logger.info("FASE 2: Scraping categorie richieste")
         logger.info("=" * 60)
-        categories = self.discover_categories()
-        logger.info(f"Trovate {len(categories)} categorie")
+        categories = [
+            # Outlet (filtro selezionato dall'utente)
+            "https://www.casadelprofumo.it/outlet-di-profumi/?dynamic_filter%5Bparameters%5D%5B71%5D%5Bvalue%5D%5B0%5D=55649&dynamic_filter%5Bparameters%5D%5B71%5D%5Bvalue%5D%5B1%5D=63837",
+            # Profumi da uomo
+            "https://www.casadelprofumo.it/profumi-da-uomo/",
+            # Tester profumi uomo+unisex
+            "https://www.casadelprofumo.it/tester-di-profumi/f/da-uomo%7Cunisex/",
+            # Profumi unisex
+            "https://www.casadelprofumo.it/profumi-unisex/",
+        ]
+        logger.info(f"Trovate {len(categories)} categorie richieste (manuali)")
         
         for i, category_url in enumerate(categories, 1):
             logger.info(f"[{i}/{len(categories)}] Scraping categoria: {category_url}")
