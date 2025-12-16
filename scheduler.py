@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 def start_telegram_bot():
     """Avvia il bot Telegram in un thread separato"""
     try:
+        import asyncio
         from telegram.ext import Application
         import telegram_bot
         
@@ -26,6 +27,10 @@ def start_telegram_bot():
             return
         
         logger.info("Avvio bot Telegram...")
+        
+        # Crea un nuovo event loop per questo thread
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
         
         # Crea applicazione bot
         application = Application.builder().token(config.TELEGRAM_BOT_TOKEN).build()
