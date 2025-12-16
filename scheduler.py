@@ -14,6 +14,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Evita log troppo verbosi di httpx che possono includere URL con token Telegram
+logging.getLogger("httpx").setLevel(logging.WARNING)
+
 
 def start_telegram_bot():
     """Avvia il bot Telegram in un thread separato"""
