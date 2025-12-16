@@ -37,7 +37,7 @@ def start_telegram_bot():
         
         # Aggiungi handler (stessi handler di telegram_bot.py)
         from telegram import Update
-        from telegram.ext import CommandHandler, MessageHandler, filters, ContextTypes
+        from telegram.ext import CommandHandler, MessageHandler, filters
         
         application.add_handler(CommandHandler("start", telegram_bot.start_command))
         application.add_handler(CommandHandler("help", telegram_bot.help_command))
@@ -45,23 +45,17 @@ def start_telegram_bot():
         
         logger.info("Bot Telegram avviato e in ascolto...")
         
-        # Avvia il bot usando start() e idle() invece di run_polling() per evitare problemi con signal handlers
+        # Avvia il bot in modo asincrono
         async def run_bot():
             await application.initialize()
             await application.start()
             await application.updater.start_polling(allowed_updates=Update.ALL_TYPES, drop_pending_updates=True)
-            # Usa idle() per mantenere il bot attivo senza signal handlers
-            await application.updater.idle()
+            # Mantieni il bot attivo indefinitamente
+            stop_event = asyncio.Event()
+            await stop_event.wait()
         
-        # Esegui il bot nel loop
-        try:
-            loop.run_until_complete(run_bot())
-        except KeyboardInterrupt:
-            logger.info("Bot Telegram fermato")
-        finally:
-            loop.run_until_complete(application.stop())
-            loop.run_until_complete(application.shutdown())
-            loop.close()
+        # Esegui il bot nel loop (bloccante)
+        loop.run_until_complete(run_bot())
         
     except ImportError:
         logger.warning("python-telegram-bot non disponibile - Bot Telegram disabilitato")
