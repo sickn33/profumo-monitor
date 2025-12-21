@@ -13,9 +13,11 @@ class Settings(BaseSettings):
     """Configurazione dell'applicazione con validazione automatica"""
     
     # Database
+    # Railway fornisce DATABASE_URL quando si aggiunge PostgreSQL
+    # Supporta anche POSTGRES_URL come fallback
     database_url: str = Field(
         default='sqlite:///profumi_prices.db',
-        description="URL di connessione al database"
+        description="URL di connessione al database (Railway: DATABASE_URL o POSTGRES_URL)"
     )
     
     # Sito da monitorare

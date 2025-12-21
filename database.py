@@ -5,6 +5,7 @@ from sqlalchemy import create_engine, Column, String, Float, DateTime, Integer, 
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime, timezone
+import os
 import config
 
 
@@ -77,7 +78,30 @@ class Database:
     """
     
     def __init__(self):
-        self.engine = create_engine(config.DATABASE_URL, echo=False)
+        # #region agent log - DEBUG: Verifica tipo database
+        db_url = config.DATABASE_URL
+        is_sqlite = db_url.startswith('sqlite://')
+        is_railway = os.getenv('RAILWAY_ENVIRONMENT') is not None or os.getenv('RAILWAY_SERVICE_NAME') is not None
+        
+        if is_sqlite and is_railway:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error("=" * 60)
+            logger.error("🚨 ERRORE CRITICO: SQLite su Railway (filesystem effimero)")
+            logger.error("🚨 I dati vengono persi ad ogni deploy!")
+            logger.error("=" * 60)
+            logger.error("SOLUZIONE:")
+            logger.error("1. Railway Dashboard → + New → Database → Add PostgreSQL")
+            logger.error("2. Railway collegherà automaticamente DATABASE_URL al worker")
+            logger.error("3. Riavvia il deploy")
+            logger.error("=" * 60)
+        elif is_sqlite:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning("⚠️ Usando SQLite (OK per sviluppo locale, NON per produzione)")
+        # #endregion
+        
+        self.engine = create_engine(db_url, echo=False)
         Base.metadata.create_all(self.engine)
         Session = sessionmaker(bind=self.engine)
         self.session = Session()
