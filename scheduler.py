@@ -18,8 +18,20 @@ logger = logging.getLogger(__name__)
 logging.getLogger("httpx").setLevel(logging.WARNING)
 
 
+# Flag globale per evitare istanze multiple del bot
+_bot_started = False
+_bot_lock = threading.Lock()
+
 def start_telegram_bot():
     """Avvia il bot Telegram in un thread separato"""
+    global _bot_started
+    
+    with _bot_lock:
+        if _bot_started:
+            logger.warning("Bot Telegram già avviato, evito istanza duplicata")
+            return
+        _bot_started = True
+    
     try:
         import asyncio
         from telegram.ext import Application
@@ -44,6 +56,8 @@ def start_telegram_bot():
         
         application.add_handler(CommandHandler("start", telegram_bot.start_command))
         application.add_handler(CommandHandler("help", telegram_bot.help_command))
+        application.add_handler(CommandHandler("list", telegram_bot.list_command))
+        application.add_handler(CommandHandler("stats", telegram_bot.stats_command))
         application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, telegram_bot.handle_message))
         
         logger.info("Bot Telegram avviato e in ascolto...")
@@ -52,7 +66,12 @@ def start_telegram_bot():
         async def run_bot():
             await application.initialize()
             await application.start()
-            await application.updater.start_polling(allowed_updates=Update.ALL_TYPES, drop_pending_updates=True)
+            # Drop pending updates per evitare conflitti con altre istanze
+            await application.updater.start_polling(
+                allowed_updates=Update.ALL_TYPES, 
+                drop_pending_updates=True,
+                close_loop=False  # Non chiudere il loop quando si ferma
+            )
             # Mantieni il bot attivo indefinitamente
             stop_event = asyncio.Event()
             await stop_event.wait()

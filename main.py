@@ -66,14 +66,30 @@ def run_monitoring_cycle():
             if products_processed == 0:
                 logger.warning("⚠️ Nessun prodotto processato! Verifica che i prodotti abbiano prezzi validi.")
             
+            # Statistiche prodotti
+            total_in_db = db.session.query(database.Product).count()
+            products_on_sale = db.session.query(database.Product).filter(
+                database.Product.is_on_sale == True
+            ).count()
+            logger.info(f"Statistiche DB: {total_in_db} prodotti totali, {products_on_sale} in offerta")
+            
             # Invia notifiche per alert non ancora notificati
             unnotified_alerts = db.get_unnotified_alerts()
             logger.info(f"Alert da notificare: {len(unnotified_alerts)}")
             
+            notified_count = 0
             for alert in unnotified_alerts:
+                logger.debug(f"Invio notifica per alert: {alert.alert_type} - {alert.message[:50]}...")
                 success = notif.notify(alert)
                 if success:
                     db.mark_alert_notified(alert.id)
+                    notified_count += 1
+                    logger.info(f"✅ Notifica inviata: {alert.alert_type}")
+                else:
+                    logger.warning(f"❌ Errore invio notifica per alert {alert.id}")
+            
+            if notified_count > 0:
+                logger.info(f"✅ Inviate {notified_count} notifiche con successo")
             
             logger.info("Ciclo di monitoraggio completato")
             
