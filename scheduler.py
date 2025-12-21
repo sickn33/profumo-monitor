@@ -69,8 +69,7 @@ def start_telegram_bot():
             # Drop pending updates per evitare conflitti con altre istanze
             await application.updater.start_polling(
                 allowed_updates=Update.ALL_TYPES, 
-                drop_pending_updates=True,
-                close_loop=False  # Non chiudere il loop quando si ferma
+                drop_pending_updates=True
             )
             # Mantieni il bot attivo indefinitamente
             stop_event = asyncio.Event()
