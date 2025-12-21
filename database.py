@@ -1,11 +1,16 @@
 """
 Gestione database per tracciare i prezzi dei profumi
 """
-from sqlalchemy import create_engine, Column, String, Float, DateTime, Integer, Boolean
+from sqlalchemy import create_engine, Column, String, Float, DateTime, Integer, Boolean, func
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
-from datetime import datetime
+from datetime import datetime, timezone
 import config
+
+
+def utc_now():
+    """Restituisce il datetime UTC corrente (timezone-aware)"""
+    return datetime.now(timezone.utc)
 
 Base = declarative_base()
 
@@ -25,8 +30,8 @@ class Product(Base):
     highest_price = Column(Float)
     price_drop_percentage = Column(Float)
     is_on_sale = Column(Boolean, default=False)
-    last_checked = Column(DateTime, default=datetime.utcnow)
-    first_seen = Column(DateTime, default=datetime.utcnow)
+    last_checked = Column(DateTime, default=utc_now)
+    first_seen = Column(DateTime, default=utc_now)
     times_checked = Column(Integer, default=1)
     
     def __repr__(self):
@@ -40,7 +45,7 @@ class PriceHistory(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     product_id = Column(String, nullable=False, index=True)
     price = Column(Float, nullable=False)
-    timestamp = Column(DateTime, default=datetime.utcnow, index=True)
+    timestamp = Column(DateTime, default=utc_now, index=True)
     
     def __repr__(self):
         return f"<PriceHistory(product_id='{self.product_id}', price={self.price}, timestamp={self.timestamp})>"
@@ -56,7 +61,7 @@ class Alert(Base):
     message = Column(String, nullable=False)
     old_price = Column(Float)
     new_price = Column(Float)
-    timestamp = Column(DateTime, default=datetime.utcnow, index=True)
+    timestamp = Column(DateTime, default=utc_now, index=True)
     notified = Column(Boolean, default=False)
     
     def __repr__(self):
@@ -64,13 +69,27 @@ class Alert(Base):
 
 
 class Database:
-    """Classe per gestire il database"""
+    """Classe per gestire il database.
+    
+    Supporta l'uso come context manager per garantire la chiusura della sessione:
+        with Database() as db:
+            db.get_product(...)
+    """
     
     def __init__(self):
         self.engine = create_engine(config.DATABASE_URL, echo=False)
         Base.metadata.create_all(self.engine)
         Session = sessionmaker(bind=self.engine)
         self.session = Session()
+    
+    def __enter__(self):
+        """Entra nel context manager"""
+        return self
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Esce dal context manager, chiudendo la sessione"""
+        self.close()
+        return False  # Non sopprime eccezioni
     
     def get_or_create_product(self, product_id, name, url, price, brand=None):
         """Ottiene o crea un prodotto"""
@@ -84,7 +103,7 @@ class Database:
             # Aggiorna il prodotto
             product.previous_price = product.current_price
             product.current_price = price
-            product.last_checked = datetime.utcnow()
+            product.last_checked = utc_now()
             product.times_checked += 1
             
             # Calcola la variazione di prezzo
@@ -116,7 +135,7 @@ class Database:
                 current_price=price,
                 lowest_price=price,
                 highest_price=price,
-                first_seen=datetime.utcnow()
+                first_seen=utc_now()
             )
             # Per prodotti nuovi, non c'è un "vecchio" lowest_price
             product._previous_lowest_price = None
@@ -146,7 +165,6 @@ class Database:
         # Se abbiamo un new_price, deduplica anche su quello (più preciso)
         if new_price is not None:
             # Confronta con tolleranza per float (arrotonda a 2 decimali)
-            from sqlalchemy import func
             query = query.filter(
                 func.abs(Alert.new_price - new_price) < 0.01  # Tolleranza 1 centesimo
             )

@@ -76,8 +76,9 @@ class PriceAnalyzer:
         if not self._price_decreased_since_last_check(product):
             return None
         
-        # Se il prezzo è inferiore al 30% del prezzo più alto mai visto
-        if product.highest_price and product.current_price < (product.highest_price * 0.3):
+        # Se il prezzo è inferiore alla soglia configurata del prezzo più alto mai visto
+        error_threshold = getattr(config, 'ERROR_PRICE_THRESHOLD', 0.30)
+        if product.highest_price and product.current_price < (product.highest_price * error_threshold):
             # Verifica che non sia semplicemente un nuovo prodotto
             if product.times_checked > 3:  # Abbiamo già visto questo prodotto diverse volte
                 message = (
@@ -157,7 +158,9 @@ class PriceAnalyzer:
         if previous_lowest and product.current_price < previous_lowest:
             drop_from_low = ((previous_lowest - product.current_price) / previous_lowest) * 100
             
-            if drop_from_low >= 5:  # Almeno 5% di sconto rispetto al minimo precedente
+            # Usa la soglia configurabile (default 5%)
+            new_low_threshold = getattr(config, 'NEW_LOW_THRESHOLD', 0.05) * 100
+            if drop_from_low >= new_low_threshold:
                 message = (
                     f"🎯 NUOVO PREZZO MINIMO!\n"
                     f"📦 {product.name}\n"

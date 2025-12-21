@@ -103,7 +103,8 @@ Benvenuto! Questo bot ti permette di aggiungere prodotti da monitorare inviando 
 <b>Comandi disponibili:</b>
 /start - Mostra questo messaggio
 /help - Mostra la guida completa
-/list - Lista i prodotti monitorati (prossimamente)
+/list - Lista i prodotti monitorati
+/stats - Mostra statistiche generali
 
 <b>Esempio:</b>
 Invia un link come:
@@ -180,14 +181,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "Scraping dati e aggiunta al database..."
     )
     
-    db = None
     try:
-        # Inizializza componenti
-        db = database.Database()
+        # Scrapa il prodotto prima di aprire il DB
         scraper_instance = scraper.CasaDelProfumoScraper()
-        analyzer = price_analyzer.PriceAnalyzer(db)
-        
-        # Scrapa il prodotto
         logger.info(f"Scraping prodotto da URL: {url}")
         product_data = scraper_instance.scrape_product_page(url)
         
@@ -208,58 +204,62 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             return
         
-        # Verifica se il prodotto esiste già
-        existing_product = db.get_product(product_data['product_id'])
-        
-        # Salva/aggiorna nel database
-        product = db.get_or_create_product(
-            product_id=product_data['product_id'],
-            name=product_data['name'],
-            url=product_data['url'],
-            price=product_data['price'],
-            brand=product_data.get('brand')
-        )
-        
-        # Analizza il prodotto
-        alerts = analyzer.analyze_product(product)
-        
-        # Prepara messaggio di conferma
-        if existing_product:
-            confirmation_message = (
-                f"✅ <b>Prodotto già monitorato - Aggiornato!</b>\n\n"
-                f"📦 <b>{product.name}</b>\n"
+        # Ora apriamo il DB con context manager
+        with database.Database() as db:
+            analyzer = price_analyzer.PriceAnalyzer(db)
+            
+            # Verifica se il prodotto esiste già
+            existing_product = db.get_product(product_data['product_id'])
+            
+            # Salva/aggiorna nel database
+            product = db.get_or_create_product(
+                product_id=product_data['product_id'],
+                name=product_data['name'],
+                url=product_data['url'],
+                price=product_data['price'],
+                brand=product_data.get('brand')
             )
-        else:
-            confirmation_message = (
-                f"✅ <b>Prodotto aggiunto con successo!</b>\n\n"
-                f"📦 <b>{product.name}</b>\n"
-            )
-        
-        if product.brand:
-            confirmation_message += f"🏷️ Brand: {product.brand}\n"
-        
-        confirmation_message += (
-            f"💰 Prezzo attuale: <b>€{product.current_price:.2f}</b>\n"
-            f"🔗 <a href='{product.url}'>Vedi prodotto</a>\n\n"
-        )
-        
-        if product.lowest_price and product.highest_price:
+            
+            # Analizza il prodotto
+            alerts = analyzer.analyze_product(product)
+            
+            # Prepara messaggio di conferma
+            if existing_product:
+                confirmation_message = (
+                    f"✅ <b>Prodotto già monitorato - Aggiornato!</b>\n\n"
+                    f"📦 <b>{product.name}</b>\n"
+                )
+            else:
+                confirmation_message = (
+                    f"✅ <b>Prodotto aggiunto con successo!</b>\n\n"
+                    f"📦 <b>{product.name}</b>\n"
+                )
+            
+            if product.brand:
+                confirmation_message += f"🏷️ Brand: {product.brand}\n"
+            
             confirmation_message += (
-                f"📊 Prezzo più basso: €{product.lowest_price:.2f}\n"
-                f"📊 Prezzo più alto: €{product.highest_price:.2f}\n\n"
+                f"💰 Prezzo attuale: <b>€{product.current_price:.2f}</b>\n"
+                f"🔗 <a href='{product.url}'>Vedi prodotto</a>\n\n"
             )
-        
-        if alerts:
-            confirmation_message += f"🔔 Generati {len(alerts)} alert!\n"
-        
-        confirmation_message += (
-            "\n✅ Il prodotto verrà monitorato automaticamente nei cicli successivi.\n"
-            "Riceverai notifiche quando ci sono variazioni di prezzo interessanti!"
-        )
+            
+            if product.lowest_price and product.highest_price:
+                confirmation_message += (
+                    f"📊 Prezzo più basso: €{product.lowest_price:.2f}\n"
+                    f"📊 Prezzo più alto: €{product.highest_price:.2f}\n\n"
+                )
+            
+            if alerts:
+                confirmation_message += f"🔔 Generati {len(alerts)} alert!\n"
+            
+            confirmation_message += (
+                "\n✅ Il prodotto verrà monitorato automaticamente nei cicli successivi.\n"
+                "Riceverai notifiche quando ci sono variazioni di prezzo interessanti!"
+            )
+            
+            logger.info(f"Prodotto aggiunto/aggiornato: {product.name} (€{product.current_price:.2f})")
         
         await status_message.edit_text(confirmation_message, parse_mode='HTML', disable_web_page_preview=True)
-        
-        logger.info(f"Prodotto aggiunto/aggiornato: {product.name} (€{product.current_price:.2f})")
         
     except Exception as e:
         logger.error(f"Errore nell'aggiunta prodotto: {e}", exc_info=True)
@@ -268,10 +268,96 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"Errore: {str(e)}\n\n"
             "Riprova più tardi o contatta il supporto."
         )
-    finally:
-        # Garantisce sempre la chiusura del database
-        if db:
-            db.close()
+
+
+async def list_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handler per il comando /list - Mostra i prodotti monitorati"""
+    try:
+        with database.Database() as db:
+            # Ottieni i prodotti più recenti (max 20)
+            products = db.session.query(database.Product).order_by(
+                database.Product.last_checked.desc()
+            ).limit(20).all()
+            
+            if not products:
+                await update.message.reply_text(
+                    "📦 <b>Nessun prodotto monitorato</b>\n\n"
+                    "Invia un link di un prodotto da casadelprofumo.it per iniziare!",
+                    parse_mode='HTML'
+                )
+                return
+            
+            message = f"📦 <b>Prodotti Monitorati</b> ({len(products)} più recenti)\n\n"
+            
+            for i, product in enumerate(products, 1):
+                # Icona per indicare se è in offerta
+                sale_icon = "🔥" if product.is_on_sale else "📌"
+                
+                message += f"{sale_icon} <b>{i}. {product.name[:40]}...</b>\n"
+                message += f"   💰 €{product.current_price:.2f}"
+                
+                if product.previous_price and product.price_drop_percentage and product.price_drop_percentage > 0:
+                    message += f" (era €{product.previous_price:.2f}, -{product.price_drop_percentage:.1f}%)"
+                
+                message += "\n"
+                
+                if product.lowest_price:
+                    message += f"   📊 Min: €{product.lowest_price:.2f}"
+                if product.highest_price:
+                    message += f" | Max: €{product.highest_price:.2f}"
+                message += "\n\n"
+            
+            message += "💡 <i>Usa /stats per le statistiche generali</i>"
+            
+            await update.message.reply_text(message, parse_mode='HTML')
+            
+    except Exception as e:
+        logger.error(f"Errore nel comando /list: {e}", exc_info=True)
+        await update.message.reply_text(
+            "❌ Errore nel recupero dei prodotti.\n"
+            "Riprova più tardi."
+        )
+
+
+async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handler per il comando /stats - Mostra statistiche generali"""
+    try:
+        with database.Database() as db:
+            # Raccogli statistiche
+            total_products = db.session.query(database.Product).count()
+            products_on_sale = db.session.query(database.Product).filter(
+                database.Product.is_on_sale == True
+            ).count()
+            total_alerts = db.session.query(database.Alert).count()
+            unnotified_alerts = db.session.query(database.Alert).filter(
+                database.Alert.notified == False
+            ).count()
+            
+            # Calcola prezzo medio se ci sono prodotti
+            avg_price = 0
+            if total_products > 0:
+                from sqlalchemy import func
+                result = db.session.query(func.avg(database.Product.current_price)).scalar()
+                avg_price = result or 0
+            
+            message = (
+                "📊 <b>Statistiche Monitoraggio</b>\n\n"
+                f"📦 Prodotti monitorati: <b>{total_products}</b>\n"
+                f"🔥 Prodotti in offerta: <b>{products_on_sale}</b>\n"
+                f"💰 Prezzo medio: <b>€{avg_price:.2f}</b>\n\n"
+                f"🔔 Alert totali: <b>{total_alerts}</b>\n"
+                f"📬 Alert da notificare: <b>{unnotified_alerts}</b>\n\n"
+                "💡 <i>Usa /list per vedere i prodotti monitorati</i>"
+            )
+            
+            await update.message.reply_text(message, parse_mode='HTML')
+            
+    except Exception as e:
+        logger.error(f"Errore nel comando /stats: {e}", exc_info=True)
+        await update.message.reply_text(
+            "❌ Errore nel recupero delle statistiche.\n"
+            "Riprova più tardi."
+        )
 
 
 def main():
@@ -290,6 +376,8 @@ def main():
     # Aggiungi handler per comandi
     application.add_handler(CommandHandler("start", start_command))
     application.add_handler(CommandHandler("help", help_command))
+    application.add_handler(CommandHandler("list", list_command))
+    application.add_handler(CommandHandler("stats", stats_command))
     
     # Aggiungi handler per messaggi di testo (che potrebbero contenere link)
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))

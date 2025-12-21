@@ -1,11 +1,14 @@
-requests==2.31.0
-beautifulsoup4==4.12.2
-lxml==4.9.3
-sqlalchemy==2.0.23
-apscheduler==3.10.4
-python-telegram-bot==20.7
-python-dotenv==1.0.0
-pandas==2.1.4
-numpy==1.26.2
-selenium==4.15.2
-webdriver-manager==4.0.1
+# Core dependencies
+requests>=2.31.0
+beautifulsoup4>=4.12.0
+lxml>=4.9.0
+sqlalchemy>=2.0.0
+apscheduler>=3.10.0
+python-telegram-bot>=20.0
+python-dotenv>=1.0.0
+
+# Utilities
+tenacity>=8.2.0          # Retry logic
+pydantic>=2.5.0          # Config validation  
+pydantic-settings>=2.1.0 # Settings management
+aiohttp>=3.9.0           # Async HTTP client

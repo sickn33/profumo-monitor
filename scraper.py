@@ -8,9 +8,17 @@ import re
 from urllib.parse import urljoin, urlparse
 import config
 import logging
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Eccezioni per cui fare retry
+RETRYABLE_EXCEPTIONS = (
+    requests.exceptions.Timeout,
+    requests.exceptions.ConnectionError,
+    requests.exceptions.HTTPError,
+)
 
 
 class CasaDelProfumoScraper:
@@ -24,6 +32,21 @@ class CasaDelProfumoScraper:
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
             'Accept-Language': 'it-IT,it;q=0.9,en;q=0.8',
         })
+    
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        retry=retry_if_exception_type(RETRYABLE_EXCEPTIONS),
+        before_sleep=lambda retry_state: logger.warning(
+            f"Retry {retry_state.attempt_number} per {retry_state.args[1] if len(retry_state.args) > 1 else 'URL'}"
+        )
+    )
+    def _make_request(self, url, timeout=30):
+        """Esegue una richiesta HTTP con retry automatico su errori transitori"""
+        time.sleep(config.REQUEST_DELAY)
+        response = self.session.get(url, timeout=timeout)
+        response.raise_for_status()
+        return response
     
     def extract_price(self, price_text):
         """Estrae il prezzo da una stringa"""
@@ -57,10 +80,7 @@ class CasaDelProfumoScraper:
     def scrape_product_page(self, url):
         """Scrapa una singola pagina prodotto"""
         try:
-            time.sleep(config.REQUEST_DELAY)
-            response = self.session.get(url, timeout=30)
-            response.raise_for_status()
-            
+            response = self._make_request(url)
             soup = BeautifulSoup(response.content, 'lxml')
             
             # Estrai nome prodotto
@@ -234,8 +254,7 @@ class CasaDelProfumoScraper:
         parsed = urlparse(current_url)
         if 'page' in parsed.query:
             # Estrai numero pagina corrente
-            import re as regex_module
-            page_match = regex_module.search(r'page=(\d+)', parsed.query)
+            page_match = re.search(r'page=(\d+)', parsed.query)
             if page_match:
                 next_page = int(page_match.group(1)) + 1
                 if '?' in current_url:
@@ -255,21 +274,7 @@ class CasaDelProfumoScraper:
         
         while pages_scraped < max_pages:
             try:
-                time.sleep(config.REQUEST_DELAY)
-                response = self.session.get(current_url, timeout=30)
-                
-                # Se 404, prova senza parametri
-                if response.status_code == 404:
-                    # Rimuovi eventuali parametri
-                    clean_url = current_url.split('?')[0]
-                    if clean_url != current_url:
-                        current_url = clean_url
-                        response = self.session.get(current_url, timeout=30)
-                
-                if response.status_code != 200:
-                    logger.warning(f"Status {response.status_code} per {current_url}, fermo")
-                    break
-                
+                response = self._make_request(current_url)
                 soup = BeautifulSoup(response.content, 'lxml')
                 
                 # Trova link prodotti
@@ -297,6 +302,16 @@ class CasaDelProfumoScraper:
                 
                 current_url = next_url
                 
+            except requests.exceptions.HTTPError as e:
+                # Se 404, prova senza parametri
+                if e.response is not None and e.response.status_code == 404:
+                    clean_url = current_url.split('?')[0]
+                    if clean_url != current_url:
+                        logger.info(f"404 su {current_url}, provo senza parametri")
+                        current_url = clean_url
+                        continue
+                logger.warning(f"Errore HTTP {e.response.status_code if e.response else 'unknown'} per {current_url}, fermo")
+                break
             except Exception as e:
                 logger.error(f"Errore nello scraping della categoria: {e}")
                 break
@@ -324,7 +339,7 @@ class CasaDelProfumoScraper:
         
         try:
             # Prendi homepage
-            response = self.session.get(self.base_url, timeout=30)
+            response = self._make_request(self.base_url)
             soup = BeautifulSoup(response.content, 'lxml')
             
             # Cerca link categorie
@@ -358,7 +373,7 @@ class CasaDelProfumoScraper:
         
         try:
             logger.info("Scraping prodotti dalla homepage...")
-            response = self.session.get(self.base_url, timeout=30)
+            response = self._make_request(self.base_url)
             soup = BeautifulSoup(response.content, 'lxml')
             
             product_links = self.find_product_links(soup, seen_urls)
@@ -390,21 +405,16 @@ class CasaDelProfumoScraper:
                 all_products.append(product)
         logger.info(f"Prodotti homepage: {len(homepage_products)}")
         
-        # 2. Scrapa SOLO le categorie richieste dall'utente
+        # 2. Scrapa le categorie configurate
         logger.info("=" * 60)
-        logger.info("FASE 2: Scraping categorie richieste")
+        logger.info("FASE 2: Scraping categorie configurate")
         logger.info("=" * 60)
-        categories = [
-            # Outlet (filtro selezionato dall'utente)
-            "https://www.casadelprofumo.it/outlet-di-profumi/?dynamic_filter%5Bparameters%5D%5B71%5D%5Bvalue%5D%5B0%5D=55649&dynamic_filter%5Bparameters%5D%5B71%5D%5Bvalue%5D%5B1%5D=63837",
-            # Profumi da uomo
+        # Usa le categorie dal config (configurabili via env o .env)
+        categories = getattr(config, 'SCRAPE_CATEGORIES', [
             "https://www.casadelprofumo.it/profumi-da-uomo/",
-            # Tester profumi uomo+unisex
-            "https://www.casadelprofumo.it/tester-di-profumi/f/da-uomo%7Cunisex/",
-            # Profumi unisex
             "https://www.casadelprofumo.it/profumi-unisex/",
-        ]
-        logger.info(f"Trovate {len(categories)} categorie richieste (manuali)")
+        ])
+        logger.info(f"Trovate {len(categories)} categorie da scrapare")
         
         for i, category_url in enumerate(categories, 1):
             logger.info(f"[{i}/{len(categories)}] Scraping categoria: {category_url}")

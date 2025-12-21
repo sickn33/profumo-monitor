@@ -1,6 +1,10 @@
 """
 Script per verificare e ottenere il Chat ID corretto
 """
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import asyncio
 import config
 from telegram import Bot

@@ -1,6 +1,10 @@
 """
 Script di test per verificare le funzionalità del bot Telegram
 """
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import asyncio
 import config
 from telegram import Bot

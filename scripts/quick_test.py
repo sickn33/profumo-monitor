@@ -1,6 +1,10 @@
 """
 Test rapido su una singola pagina prodotto
 """
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import scraper
 import requests
 from bs4 import BeautifulSoup

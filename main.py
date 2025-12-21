@@ -23,64 +23,62 @@ def run_monitoring_cycle():
     logger.info("Inizio ciclo di monitoraggio")
     logger.info("=" * 60)
     
-    db = database.Database()
-    analyzer = price_analyzer.PriceAnalyzer(db)
-    notif = notifier.Notifier()
-    
-    try:
-        # Scrapa i prodotti
-        logger.info("Avvio scraping prodotti...")
-        scraper_instance = scraper.CasaDelProfumoScraper()
-        products = scraper_instance.scrape_all_profumes()
+    with database.Database() as db:
+        analyzer = price_analyzer.PriceAnalyzer(db)
+        notif = notifier.Notifier()
         
-        logger.info(f"Trovati {len(products)} prodotti")
-        
-        if len(products) == 0:
-            logger.warning("⚠️ Nessun prodotto trovato! Verifica che lo scraper funzioni correttamente.")
-            return
-        
-        # Processa ogni prodotto
-        alerts_generated = 0
-        products_processed = 0
-        for product_data in products:
-            if not product_data or not product_data.get('price'):
-                continue
+        try:
+            # Scrapa i prodotti
+            logger.info("Avvio scraping prodotti...")
+            scraper_instance = scraper.CasaDelProfumoScraper()
+            products = scraper_instance.scrape_all_profumes()
             
-            # Salva/aggiorna nel database
-            product = db.get_or_create_product(
-                product_id=product_data['product_id'],
-                name=product_data['name'],
-                url=product_data['url'],
-                price=product_data['price'],
-                brand=product_data.get('brand')
-            )
+            logger.info(f"Trovati {len(products)} prodotti")
             
-            # Analizza il prodotto
-            alerts = analyzer.analyze_product(product)
-            alerts_generated += len(alerts)
-            products_processed += 1
-        
-        logger.info(f"Processati {products_processed} prodotti")
-        logger.info(f"Generati {alerts_generated} alert")
-        
-        if products_processed == 0:
-            logger.warning("⚠️ Nessun prodotto processato! Verifica che i prodotti abbiano prezzi validi.")
-        
-        # Invia notifiche per alert non ancora notificati
-        unnotified_alerts = db.get_unnotified_alerts()
-        logger.info(f"Alert da notificare: {len(unnotified_alerts)}")
-        
-        for alert in unnotified_alerts:
-            success = notif.notify(alert)
-            if success:
-                db.mark_alert_notified(alert.id)
-        
-        logger.info("Ciclo di monitoraggio completato")
-        
-    except Exception as e:
-        logger.error(f"Errore durante il ciclo di monitoraggio: {e}", exc_info=True)
-    finally:
-        db.close()
+            if len(products) == 0:
+                logger.warning("⚠️ Nessun prodotto trovato! Verifica che lo scraper funzioni correttamente.")
+                return
+            
+            # Processa ogni prodotto
+            alerts_generated = 0
+            products_processed = 0
+            for product_data in products:
+                if not product_data or not product_data.get('price'):
+                    continue
+                
+                # Salva/aggiorna nel database
+                product = db.get_or_create_product(
+                    product_id=product_data['product_id'],
+                    name=product_data['name'],
+                    url=product_data['url'],
+                    price=product_data['price'],
+                    brand=product_data.get('brand')
+                )
+                
+                # Analizza il prodotto
+                alerts = analyzer.analyze_product(product)
+                alerts_generated += len(alerts)
+                products_processed += 1
+            
+            logger.info(f"Processati {products_processed} prodotti")
+            logger.info(f"Generati {alerts_generated} alert")
+            
+            if products_processed == 0:
+                logger.warning("⚠️ Nessun prodotto processato! Verifica che i prodotti abbiano prezzi validi.")
+            
+            # Invia notifiche per alert non ancora notificati
+            unnotified_alerts = db.get_unnotified_alerts()
+            logger.info(f"Alert da notificare: {len(unnotified_alerts)}")
+            
+            for alert in unnotified_alerts:
+                success = notif.notify(alert)
+                if success:
+                    db.mark_alert_notified(alert.id)
+            
+            logger.info("Ciclo di monitoraggio completato")
+            
+        except Exception as e:
+            logger.error(f"Errore durante il ciclo di monitoraggio: {e}", exc_info=True)
 
 
 if __name__ == "__main__":
