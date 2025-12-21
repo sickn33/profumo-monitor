@@ -180,6 +180,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "Scraping dati e aggiunta al database..."
     )
     
+    db = None
     try:
         # Inizializza componenti
         db = database.Database()
@@ -198,7 +199,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "• Il prodotto sia ancora disponibile\n"
                 "• Il sito sia raggiungibile"
             )
-            db.close()
             return
         
         if not product_data.get('price'):
@@ -206,7 +206,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "❌ Impossibile ottenere il prezzo del prodotto.\n\n"
                 "Il prodotto potrebbe non essere più disponibile o il link potrebbe essere errato."
             )
-            db.close()
             return
         
         # Verifica se il prodotto esiste già
@@ -262,8 +261,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         logger.info(f"Prodotto aggiunto/aggiornato: {product.name} (€{product.current_price:.2f})")
         
-        db.close()
-        
     except Exception as e:
         logger.error(f"Errore nell'aggiunta prodotto: {e}", exc_info=True)
         await status_message.edit_text(
@@ -271,6 +268,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"Errore: {str(e)}\n\n"
             "Riprova più tardi o contatta il supporto."
         )
+    finally:
+        # Garantisce sempre la chiusura del database
+        if db:
+            db.close()
 
 
 def main():

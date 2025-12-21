@@ -113,10 +113,15 @@ class PriceAnalyzer:
         if not self._price_decreased_since_last_check(product):
             return None
         
-        # Se il prezzo è inferiore al 20% del prezzo più alto
-        if product.highest_price and product.current_price < (product.highest_price * 0.8):
-            # E se è vicino al prezzo più basso mai visto
-            if product.lowest_price and product.current_price <= (product.lowest_price * 1.1):
+        # Usa il vecchio highest_price per il confronto (prima dell'aggiornamento)
+        previous_highest = getattr(product, '_previous_highest_price', product.highest_price)
+        
+        # Se il prezzo è inferiore al 20% del prezzo più alto PRECEDENTE
+        if previous_highest and product.current_price < (previous_highest * 0.8):
+            # Usa il vecchio lowest_price per il confronto (prima dell'aggiornamento)
+            previous_lowest = getattr(product, '_previous_lowest_price', product.lowest_price)
+            # E se è vicino al prezzo più basso mai visto PRIMA dell'aggiornamento
+            if previous_lowest and product.current_price <= (previous_lowest * 1.1):
                 message = (
                     f"✨ OTTIMA OFFERTA!\n"
                     f"📦 {product.name}\n"
@@ -130,7 +135,7 @@ class PriceAnalyzer:
                     product_id=product.product_id,
                     alert_type='great_deal',
                     message=message,
-                    old_price=product.highest_price,
+                    old_price=previous_highest,
                     new_price=product.current_price
                 )
                 
@@ -144,16 +149,20 @@ class PriceAnalyzer:
         if not product.current_price or product.current_price <= 0:
             return None
         
-        # Se il prezzo attuale è inferiore al prezzo più basso precedente
-        if product.lowest_price and product.current_price < product.lowest_price:
-            drop_from_low = ((product.lowest_price - product.current_price) / product.lowest_price) * 100
+        # Usa il vecchio lowest_price (prima dell'aggiornamento) per il confronto
+        # Questo è salvato come attributo temporaneo in get_or_create_product
+        previous_lowest = getattr(product, '_previous_lowest_price', product.lowest_price)
+        
+        # Se il prezzo attuale è inferiore al prezzo più basso PRECEDENTE (prima dell'aggiornamento)
+        if previous_lowest and product.current_price < previous_lowest:
+            drop_from_low = ((previous_lowest - product.current_price) / previous_lowest) * 100
             
             if drop_from_low >= 5:  # Almeno 5% di sconto rispetto al minimo precedente
                 message = (
                     f"🎯 NUOVO PREZZO MINIMO!\n"
                     f"📦 {product.name}\n"
                     f"💰 Nuovo prezzo: €{product.current_price:.2f}\n"
-                    f"💰 Prezzo minimo precedente: €{product.lowest_price:.2f}\n"
+                    f"💰 Prezzo minimo precedente: €{previous_lowest:.2f}\n"
                     f"📉 Risparmio: {drop_from_low:.1f}%\n"
                     f"🔗 {product.url}"
                 )
@@ -162,7 +171,7 @@ class PriceAnalyzer:
                     product_id=product.product_id,
                     alert_type='new_low',
                     message=message,
-                    old_price=product.lowest_price,
+                    old_price=previous_lowest,
                     new_price=product.current_price
                 )
                 

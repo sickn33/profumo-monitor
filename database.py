@@ -77,6 +77,10 @@ class Database:
         product = self.session.query(Product).filter_by(product_id=product_id).first()
         
         if product:
+            # Salva i valori storici PRIMA di aggiornarli (per l'analisi)
+            old_lowest_price = product.lowest_price
+            old_highest_price = product.highest_price
+            
             # Aggiorna il prodotto
             product.previous_price = product.current_price
             product.current_price = price
@@ -95,6 +99,11 @@ class Database:
             if not product.highest_price or price > product.highest_price:
                 product.highest_price = price
             
+            # Salva i valori vecchi come attributi temporanei per l'analisi
+            # (questi non vengono salvati nel DB, sono solo per uso interno)
+            product._previous_lowest_price = old_lowest_price
+            product._previous_highest_price = old_highest_price
+            
             if brand:
                 product.brand = brand
         else:
@@ -109,6 +118,9 @@ class Database:
                 highest_price=price,
                 first_seen=datetime.utcnow()
             )
+            # Per prodotti nuovi, non c'è un "vecchio" lowest_price
+            product._previous_lowest_price = None
+            product._previous_highest_price = None
             self.session.add(product)
         
         # Aggiungi alla cronologia prezzi
@@ -121,16 +133,28 @@ class Database:
     def create_alert(self, product_id, alert_type, message, old_price=None, new_price=None):
         """Crea un nuovo alert.
         
-        Deduplicazione: evita di creare più volte lo stesso alert (stesso prodotto, tipo e messaggio).
-        Questo previene notifiche ripetute ad ogni ciclo quando una condizione resta vera.
+        Deduplicazione migliorata: evita di creare più volte lo stesso alert per lo stesso prodotto,
+        tipo e nuovo prezzo (più robusto del controllo sul messaggio completo).
         """
-        # Se esiste già un alert IDENTICO, non crearne un altro (evita spam notifiche)
-        existing = (
-            self.session.query(Alert)
-            .filter_by(product_id=product_id, alert_type=alert_type, message=message)
-            .order_by(Alert.timestamp.desc())
-            .first()
+        # Deduplicazione migliorata: controlla product_id + alert_type + new_price
+        # Questo è più robusto perché il messaggio potrebbe variare leggermente per arrotondamenti
+        query = self.session.query(Alert).filter_by(
+            product_id=product_id,
+            alert_type=alert_type
         )
+        
+        # Se abbiamo un new_price, deduplica anche su quello (più preciso)
+        if new_price is not None:
+            # Confronta con tolleranza per float (arrotonda a 2 decimali)
+            from sqlalchemy import func
+            query = query.filter(
+                func.abs(Alert.new_price - new_price) < 0.01  # Tolleranza 1 centesimo
+            )
+        else:
+            # Se non c'è new_price, fallback al controllo del messaggio
+            query = query.filter_by(message=message)
+        
+        existing = query.order_by(Alert.timestamp.desc()).first()
         if existing:
             return None
         
