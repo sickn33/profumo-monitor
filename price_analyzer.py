@@ -183,9 +183,27 @@ class PriceAnalyzer:
         
         return None
     
+    # #region agent log - DEBUG counter
+    _debug_counter = {'total': 0, 'with_previous': 0, 'price_changed': 0}
+    # #endregion
+    
     def analyze_product(self, product):
         """Esegue tutte le analisi su un prodotto"""
         alerts = []
+        
+        # #region agent log - DEBUG: Traccia stato prodotto (Ipotesi B, C)
+        PriceAnalyzer._debug_counter['total'] += 1
+        has_previous = product.previous_price is not None and product.previous_price > 0
+        if has_previous:
+            PriceAnalyzer._debug_counter['with_previous'] += 1
+            if product.current_price != product.previous_price:
+                PriceAnalyzer._debug_counter['price_changed'] += 1
+        # Log ogni 50 prodotti per non spammare
+        if PriceAnalyzer._debug_counter['total'] % 50 == 0:
+            logger.info(f"[DEBUG-BC] Analisi {PriceAnalyzer._debug_counter['total']} prodotti: "
+                       f"{PriceAnalyzer._debug_counter['with_previous']} con previous_price, "
+                       f"{PriceAnalyzer._debug_counter['price_changed']} con prezzo cambiato")
+        # #endregion
         
         # Analizza calo di prezzo
         alert = self.analyze_price_drop(product)

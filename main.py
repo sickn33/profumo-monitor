@@ -28,6 +28,15 @@ def run_monitoring_cycle():
         notif = notifier.Notifier()
         
         try:
+            # #region agent log - DEBUG: Verifica stato DB prima dello scraping (Ipotesi A)
+            existing_products_before = db.session.query(database.Product).count()
+            products_with_history = db.session.query(database.Product).filter(
+                database.Product.times_checked > 1
+            ).count()
+            logger.info(f"[DEBUG-A] Stato DB PRIMA scraping: {existing_products_before} prodotti esistenti, {products_with_history} con storico (times_checked>1)")
+            logger.info(f"[DEBUG-A] DATABASE_URL: {config.DATABASE_URL}")
+            # #endregion
+            
             # Scrapa i prodotti
             logger.info("Avvio scraping prodotti...")
             scraper_instance = scraper.CasaDelProfumoScraper()
@@ -71,6 +80,19 @@ def run_monitoring_cycle():
             products_on_sale = db.session.query(database.Product).filter(
                 database.Product.is_on_sale == True
             ).count()
+            
+            # #region agent log - DEBUG: Verifica prodotti con storico (Ipotesi B, C)
+            products_with_previous = db.session.query(database.Product).filter(
+                database.Product.previous_price.isnot(None)
+            ).count()
+            products_checked_multiple = db.session.query(database.Product).filter(
+                database.Product.times_checked > 1
+            ).count()
+            total_alerts_in_db = db.session.query(database.Alert).count()
+            logger.info(f"[DEBUG-BC] DOPO scraping: {products_with_previous} prodotti con previous_price, {products_checked_multiple} con times_checked>1")
+            logger.info(f"[DEBUG-BC] Alert totali nel DB: {total_alerts_in_db}")
+            # #endregion
+            
             logger.info(f"Statistiche DB: {total_in_db} prodotti totali, {products_on_sale} in offerta")
             
             # Invia notifiche per alert non ancora notificati
@@ -90,6 +112,12 @@ def run_monitoring_cycle():
             
             if notified_count > 0:
                 logger.info(f"✅ Inviate {notified_count} notifiche con successo")
+            
+            # #region agent log - DEBUG: Statistiche finali analisi (Ipotesi B, C)
+            logger.info(f"[DEBUG-BC] FINALE: {price_analyzer.PriceAnalyzer._debug_counter}")
+            # Reset counter per prossimo ciclo
+            price_analyzer.PriceAnalyzer._debug_counter = {'total': 0, 'with_previous': 0, 'price_changed': 0}
+            # #endregion
             
             logger.info("Ciclo di monitoraggio completato")
             
