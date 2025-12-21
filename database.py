@@ -81,11 +81,13 @@ class Database:
         # #region agent log - DEBUG: Verifica tipo database
         db_url = config.DATABASE_URL
         is_sqlite = db_url.startswith('sqlite://')
+        is_postgres = db_url.startswith('postgresql://') or db_url.startswith('postgres://')
         is_railway = os.getenv('RAILWAY_ENVIRONMENT') is not None or os.getenv('RAILWAY_SERVICE_NAME') is not None
         
+        import logging
+        logger = logging.getLogger(__name__)
+        
         if is_sqlite and is_railway:
-            import logging
-            logger = logging.getLogger(__name__)
             logger.error("=" * 60)
             logger.error("🚨 ERRORE CRITICO: SQLite su Railway (filesystem effimero)")
             logger.error("🚨 I dati vengono persi ad ogni deploy!")
@@ -96,13 +98,21 @@ class Database:
             logger.error("3. Riavvia il deploy")
             logger.error("=" * 60)
         elif is_sqlite:
-            import logging
-            logger = logging.getLogger(__name__)
             logger.warning("⚠️ Usando SQLite (OK per sviluppo locale, NON per produzione)")
+        elif is_postgres:
+            # Maschera password nell'URL per i log
+            safe_url = db_url.split('@')[0].split(':')[:-1] + ['***'] + db_url.split('@')[1:] if '@' in db_url else db_url
+            logger.info(f"✅ Connesso a PostgreSQL: {safe_url if isinstance(safe_url, str) else '***@' + db_url.split('@')[1] if '@' in db_url else '***'}")
         # #endregion
         
         self.engine = create_engine(db_url, echo=False)
-        Base.metadata.create_all(self.engine)
+        try:
+            Base.metadata.create_all(self.engine)
+            logger.info("✅ Tabelle database create/verificate con successo")
+        except Exception as e:
+            logger.error(f"❌ Errore creazione tabelle: {e}")
+            raise
+        
         Session = sessionmaker(bind=self.engine)
         self.session = Session()
     
