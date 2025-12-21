@@ -7,6 +7,9 @@ apscheduler>=3.10.0
 python-telegram-bot>=20.0
 python-dotenv>=1.0.0
 
+# Database drivers
+psycopg2-binary>=2.9.0   # PostgreSQL support (per Railway)
+
 # Utilities
 tenacity>=8.2.0          # Retry logic
 pydantic>=2.5.0          # Config validation  
