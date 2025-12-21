@@ -119,7 +119,21 @@ class Database:
         return product
     
     def create_alert(self, product_id, alert_type, message, old_price=None, new_price=None):
-        """Crea un nuovo alert"""
+        """Crea un nuovo alert.
+        
+        Deduplicazione: evita di creare più volte lo stesso alert (stesso prodotto, tipo e messaggio).
+        Questo previene notifiche ripetute ad ogni ciclo quando una condizione resta vera.
+        """
+        # Se esiste già un alert IDENTICO, non crearne un altro (evita spam notifiche)
+        existing = (
+            self.session.query(Alert)
+            .filter_by(product_id=product_id, alert_type=alert_type, message=message)
+            .order_by(Alert.timestamp.desc())
+            .first()
+        )
+        if existing:
+            return None
+        
         alert = Alert(
             product_id=product_id,
             alert_type=alert_type,

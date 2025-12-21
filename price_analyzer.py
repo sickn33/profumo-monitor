@@ -15,6 +15,26 @@ class PriceAnalyzer:
     
     def __init__(self, db):
         self.db = db
+
+    @staticmethod
+    def _price_decreased_since_last_check(product) -> bool:
+        """Ritorna True solo se il prezzo è sceso rispetto al check precedente.
+
+        Serve a evitare alert ripetuti ad ogni ciclo quando una condizione resta vera
+        (es. "ottima offerta" che rimane tale per ore/giorni).
+        """
+        try:
+            if not product.previous_price or product.previous_price <= 0:
+                return False
+            if not product.current_price or product.current_price <= 0:
+                return False
+            # Normalizza a "centesimi" per evitare falsi positivi dovuti a float
+            prev = round(float(product.previous_price), 2)
+            curr = round(float(product.current_price), 2)
+            return curr < prev
+        except Exception:
+            # In caso di oggetti incompleti/atipici, meglio non generare alert ripetitivi
+            return False
     
     def analyze_price_drop(self, product):
         """Analizza se c'è stato un calo di prezzo significativo"""
@@ -50,6 +70,11 @@ class PriceAnalyzer:
         """Rileva possibili errori di prezzo (prezzi anormalmente bassi)"""
         if not product.current_price or product.current_price <= 0:
             return None
+
+        # Evita spam: l'alert "error" deve scattare quando il prezzo "entra" nella zona anomala,
+        # non ad ogni ciclo se resta invariato.
+        if not self._price_decreased_since_last_check(product):
+            return None
         
         # Se il prezzo è inferiore al 30% del prezzo più alto mai visto
         if product.highest_price and product.current_price < (product.highest_price * 0.3):
@@ -81,6 +106,11 @@ class PriceAnalyzer:
     def analyze_great_deal(self, product):
         """Rileva se il prezzo è un'ottima offerta rispetto alla media storica"""
         if not product.current_price or product.current_price <= 0:
+            return None
+
+        # Evita di notificare continuamente la stessa offerta: manda l'alert solo quando c'è un calo
+        # rispetto al check precedente (così se il prezzo resta uguale non spamma).
+        if not self._price_decreased_since_last_check(product):
             return None
         
         # Se il prezzo è inferiore al 20% del prezzo più alto
