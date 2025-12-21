@@ -6,7 +6,7 @@ I valori sono letti dalle variabili d'ambiente o da un file .env
 """
 from typing import Optional, List
 from pydantic_settings import BaseSettings
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, ConfigDict
 
 
 class Settings(BaseSettings):
@@ -151,11 +151,11 @@ class Settings(BaseSettings):
         """Ritorna l'intervallo in ore (per compatibilità)"""
         return self.check_interval_minutes / 60
     
-    model_config = {
-        'env_file': '.env',
-        'env_file_encoding': 'utf-8',
-        'extra': 'ignore',  # Ignora variabili d'ambiente extra
-    }
+    model_config = ConfigDict(
+        env_file='.env',
+        env_file_encoding='utf-8',
+        extra='ignore',  # Ignora variabili d'ambiente extra
+    )
 
 
 # Istanza singleton delle impostazioni
