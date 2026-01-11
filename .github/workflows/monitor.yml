@@ -1,0 +1,59 @@
+name: Monitor Prezzi Profumi
+
+on:
+  schedule:
+    # Esegui ogni 6 ore (alle 00:00, 06:00, 12:00, 18:00 UTC)
+    - cron: '0 */6 * * *'
+  workflow_dispatch:  # Permette l'esecuzione manuale
+
+permissions:
+  contents: write  # Necessario per committare le modifiche al DB
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+        cache: 'pip'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+        
+    - name: Run Monitoring Script
+      env:
+        TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        EMAIL_ENABLED: ${{ secrets.EMAIL_ENABLED }}
+        EMAIL_USER: ${{ secrets.EMAIL_USER }}
+        EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+        EMAIL_TO: ${{ secrets.EMAIL_TO }}
+        CHECK_INTERVAL_HOURS: 6
+        PRICE_DROP_THRESHOLD: 0.15
+        REQUEST_DELAY: 2.0
+      run: python main.py
+      
+    - name: Commit and Push changes
+      run: |
+        git config --global user.name 'GitHub Actions Bot'
+        git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+        
+        # Aggiungi il database se modificato
+        git add profumi_prices.db
+        
+        # Controlla se ci sono modifiche da committare
+        if git diff --staged --quiet; then
+          echo "Nessuna modifica al database da salvare."
+        else
+          echo "Salvataggio modifiche database..."
+          git commit -m "Update prices [skip ci]"
+          git push
+        fi

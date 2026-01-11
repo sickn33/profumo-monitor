@@ -83,6 +83,7 @@ class Database:
         is_sqlite = db_url.startswith('sqlite://')
         is_postgres = db_url.startswith('postgresql://') or db_url.startswith('postgres://')
         is_railway = os.getenv('RAILWAY_ENVIRONMENT') is not None or os.getenv('RAILWAY_SERVICE_NAME') is not None
+        is_github_actions = os.getenv('GITHUB_ACTIONS') == 'true'
         
         import logging
         logger = logging.getLogger(__name__)
@@ -97,6 +98,8 @@ class Database:
             logger.error("2. Railway collegherà automaticamente DATABASE_URL al worker")
             logger.error("3. Riavvia il deploy")
             logger.error("=" * 60)
+        elif is_sqlite and is_github_actions:
+            logger.info("ℹ️ Running in GitHub Actions with SQLite. Database changes will be committed back to the repo.")
         elif is_sqlite:
             logger.warning("⚠️ Usando SQLite (OK per sviluppo locale, NON per produzione)")
         elif is_postgres:
