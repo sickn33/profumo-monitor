@@ -140,6 +140,16 @@ class Settings(BaseSettings):
             raise ValueError('L\'intervallo di controllo non può superare 1440 minuti (24 ore)')
         return v
     
+    @field_validator('email_enabled', mode='before')
+    @classmethod
+    def validate_email_enabled(cls, v):
+        """Handle empty string as False for email_enabled"""
+        if v == '' or v is None:
+            return False
+        if isinstance(v, str):
+            return v.lower() in ('true', '1', 'yes')
+        return v
+    
     @field_validator('price_drop_threshold', 'competitor_price_diff', 'error_price_threshold', 'new_low_threshold')
     @classmethod
     def validate_threshold(cls, v: float) -> float:
