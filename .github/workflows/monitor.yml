@@ -47,7 +47,7 @@ jobs:
         git config --global user.email 'github-actions[bot]@users.noreply.github.com'
         
         # Aggiungi il database se modificato
-        git add profumi_prices.db
+        git add -f profumi_prices.db
         
         # Controlla se ci sono modifiche da committare
         if git diff --staged --quiet; then
