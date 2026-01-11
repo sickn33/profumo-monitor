@@ -6,6 +6,7 @@
 *.db
 *.sqlite
 *.sqlite3
+!profumi_prices.db
 
 # Python
 __pycache__/
