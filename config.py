@@ -129,7 +129,6 @@ class Settings(BaseSettings):
             "https://www.casadelprofumo.it/set-regalo-di-profumi/f/da-uomo%7Cunisex/",
             "https://www.casadelprofumo.it/oriental-court/f/da-uomo%7Cunisex/",
             "https://www.casadelprofumo.it/tesori-nascosti/?dynamic_filter%5Bparameters%5D%5B71%5D%5Bvalue%5D%5B0%5D=55649&dynamic_filter%5Bparameters%5D%5B71%5D%5Bvalue%5D%5B1%5D=63837",
-            "https://www.casadelprofumo.it/miniature-ed-esempi/",
         ],
         description="Lista delle categorie da scrapare"
     )
